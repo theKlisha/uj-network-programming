@@ -10,12 +10,13 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-enum operator{ ADD, SUBTRACT };
+enum operator{ ADD, SUB };
 
-int parse(void const *stop, void const **pos, long int *result);
-int parse_operator(void const *stop, void const **pos, enum operator* result);
-int parse_endl(void const *stop, void const **pos);
-int parse_number(void const *stop, void const **pos, long int *result);
+bool parse_expr(uint8_t const *stop, uint8_t const **pos, int16_t *result);
+bool parse_operator(uint8_t const *stop, uint8_t const **pos,
+                    enum operator* result);
+bool parse_endl(uint8_t const *stop, uint8_t const **pos);
+bool parse_number(uint8_t const *stop, uint8_t const **pos, int16_t *result);
 
 int main(void) {
   int sock;
@@ -56,25 +57,33 @@ int main(void) {
       exit(EXIT_FAILURE);
     }
 
-    char response_buf[32];
-    long int result;
-    const void *pos = request_buf;
-    rc = parse(request_buf + request_len, &pos, &result);
+    printf("request recived\n");
 
-    if (rc) {
-      sprintf(response_buf, "ERROR\n");
+    uint8_t response_buf[32];
+    int16_t result;
+    const uint8_t *pos = request_buf;
+    const uint8_t *end = request_buf + request_len;
+    bool r = parse_expr(end, &pos, &result);
+    parse_endl(end, &pos);
+
+    if (r && pos == end) {
+      printf("request parsed\n");
+      sprintf((char *)response_buf, "%d", result);
     } else {
-      sprintf(response_buf, "%ld\n", result);
+      sprintf((char *)response_buf, "ERROR");
+      printf("error: invalid request\n");
     }
 
     ssize_t response_bytes_sent =
-        sendto(sock, &response_buf, strlen(response_buf), 0,
+        sendto(sock, &response_buf, strlen((char *)response_buf), 0,
                (struct sockaddr *)&address, address_size);
 
     if (response_bytes_sent == -1) {
       perror("sendto");
       exit(EXIT_FAILURE);
     }
+
+    printf("response sent\n");
   }
 
   rc = close(sock);
@@ -86,100 +95,133 @@ int main(void) {
   return 0;
 }
 
-int parse_operator(void const *stop, void const **pos, enum operator* result) {
+bool parse_operator(uint8_t const *stop, uint8_t const **pos,
+                    enum operator* result) {
   if (*pos >= stop)
-    return -1;
+    return false;
 
-  if (**(char **)pos == '+') {
+  char op = **(uint8_t **)pos;
+
+  if (op == '+') {
     *result = ADD;
     *pos += 1;
-
-    printf("parse_operator: done (+)\n");
-    return 0;
-  } else if (**(char **)pos == '-') {
-    *result = SUBTRACT;
+    return true;
+  } else if (op == '-') {
+    *result = SUB;
     *pos += 1;
-
-    printf("parse_operator: done (-)\n");
-    return 0;
+    return true;
+  } else {
+    return false;
   }
-
-  return -1;
-};
-
-int parse_endl(void const *stop, void const **pos) {
-  if (*pos >= stop || **(char **)pos != '\r')
-    return -1;
-
-  return 0;
 }
 
-int parse_number(void const *stop, void const **pos, long int *result) {
+bool parse_endl(uint8_t const *stop, uint8_t const **pos) {
   if (*pos >= stop)
-    return -1;
+    return false;
 
-  char const *ptr = *pos;
-  int len = 0;
-  while (*ptr >= '0' && *ptr <= '9') {
-    ptr += 1;
-    len = (void *)ptr - *pos;
+  if (**pos == '\n') {
+    *pos += 1;
+    return true;
+  } else if (**pos == '\r' && *pos - stop < 2 && *(*pos + 1) == '\n') {
+    *pos += 2;
+    return true;
+  } else {
+    return false;
+  }
+}
+
+bool parse_number(uint8_t const *stop, uint8_t const **pos, int16_t *result) {
+  if (*pos >= stop)
+    return false;
+
+  // ingore leading zeros
+  bool leading_zeros = false;
+  uint8_t const *offset = *pos;
+  while (*offset == '0' && offset < stop) {
+    offset += 1;
+    leading_zeros = true;
   }
 
-  if (len == 0 || len >= 16)
-    return -1;
+  int len = 0;
+  uint8_t const *ptr = offset;
+  while (*ptr >= '0' && *ptr <= '9' && ptr < stop) {
+    ptr += 1;
+    len += 1;
+  }
 
-  char num_str[16];
+  if (len == 0 && leading_zeros) {
+    *result = 0;
+    *pos = ptr;
+    return true;
+  } else if (len == 0 || len >= 8) {
+    return false;
+  }
+
+  uint8_t num_str[8];
   num_str[len] = '\0';
-  strncpy(num_str, *pos, len);
-  sscanf(num_str, "%ld", result);
+  strncpy((char *)num_str, (char *)offset, len);
+  int tmp;
+  int rc = sscanf((char *)num_str, "%d", &tmp);
 
-  *pos += len;
+  if (rc == -1 || tmp > INT16_MAX || tmp < INT16_MIN) {
+    return false;
+  }
 
-  return 0;
-};
+  *result = tmp;
+  *pos = ptr;
 
-int parse(void const *stop, void const **pos, long int *result) {
-  printf("parse\n");
+  return true;
+}
 
-  long int rolling_sum = 0;
-  enum operator op = ADD;
+bool parse_expr(uint8_t const *stop, uint8_t const **pos, int16_t *result) {
+  if (*pos >= stop)
+    return false;
 
-  parse_operator(stop, pos, &op);
+  uint8_t const *ptr = *pos;
+  int16_t sum = 0;
 
-  if (!parse_number(stop, pos, &rolling_sum)) {
-    if (op == SUBTRACT) {
-      printf("parse: leading minus\n");
-      rolling_sum *= -1;
-    }
-  } else {
-    return -1;
+  if (!parse_number(stop, &ptr, &sum)) {
+    return false;
   };
 
   while (true) {
-    printf("parse: %p, %p\n", *pos, stop);
     enum operator op;
-    long int num;
+    int16_t num;
+    uint8_t const *p = ptr;
 
-    if (parse_operator(stop, pos, &op))
+    if (!parse_operator(stop, &p, &op))
       break;
 
-    if (parse_number(stop, pos, &num))
+    if (!parse_number(stop, &p, &num))
       break;
 
-    if (op == SUBTRACT) {
-      rolling_sum -= num;
+    ptr = p;
+
+    if (op == SUB) {
+      if (num < 0 && sum > INT16_MAX + num) {
+        return false;
+      }
+      if (num > 0 && sum < INT16_MIN + num) {
+        return false;
+      }
+
+      sum -= num;
     } else if (op == ADD) {
-      rolling_sum += num;
+      if (num > 0 && sum > INT16_MAX - num) {
+        return false;
+      }
+      if (num < 0 && sum < INT16_MIN - num) {
+        return false;
+      }
+
+      sum += num;
     } else {
-      return -1;
+      // should never happen
+      return false;
     }
   }
 
-  if (!parse_endl(stop, pos) && *pos != stop) {
-    return -1;
-  }
-
-  *result = rolling_sum;
-
-  return 0;
-};
+  *result = sum;
+  *pos = ptr;
+  return true;
+}
