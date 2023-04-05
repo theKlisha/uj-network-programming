@@ -152,6 +152,60 @@ class TcpServer {
     }
 };
 
+class LineReader {
+  private:
+    const int m_BUFFER_CHUNK_SIZE = 1024 * 10;
+    int m_fd;
+    std::vector<uint8_t> m_buffer;
+    int m_position;
+
+  public:
+    LineReader(int fd)
+        : m_fd(fd), m_buffer(std::vector<uint8_t>(m_BUFFER_CHUNK_SIZE)),
+          m_position(0) {
+    }
+
+    std::string_view read_line() {
+        while (true) {
+            // make shure we have enough space in the buffer
+            m_buffer.reserve(m_position + m_BUFFER_CHUNK_SIZE);
+
+            // read data directly into the buffer
+            int bytes_read = read(
+                m_fd, m_buffer.data() + m_position,
+                m_buffer.capacity() - m_position
+            );
+
+            std::cout << "bytes_read: " << bytes_read << std::endl;
+
+            if (bytes_read == 0) {
+                // end of file
+                return std::string_view();
+            } else if (bytes_read == -1) {
+                // error
+                throw std::runtime_error(
+                    "Failed to read from socket: " +
+                    std::string(strerror(errno))
+                );
+            }
+
+            // set end of buffer to the end of the data
+            m_buffer.resize(m_position + bytes_read);
+
+            // search for a line break
+            for (int i = m_position; i < m_buffer.size(); i++) {
+                if (m_buffer[i] == '\r' && m_buffer[i + 1] == '\n') {
+                    std::string_view line(
+                        (char *)m_buffer.data() + m_position, i - m_position
+                    );
+                    m_position = i + 2;
+                    return line;
+                }
+            }
+        }
+    }
+};
+
 void protocol_handler(int fd) {
     char greeting[] = "Hello World!\r\n";
     write(fd, greeting, sizeof(greeting));
