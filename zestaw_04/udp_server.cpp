@@ -53,42 +53,42 @@ namespace sys {
 #include <sys/types.h>
 }; // namespace sys
 
-class Server;
+class TcpServer;
 
-class Server {
+class TcpServer {
     using handler_t = std::function<void(int)>;
 
-    class ServerBuilder {
+    class TcpServerBuilder {
       private:
         std::string m_addr_str = "0.0.0.0";
         uint16_t m_port = 0;
         handler_t m_handler;
 
       public:
-        ServerBuilder() {
+        TcpServerBuilder() {
         }
 
-        ServerBuilder &handler(handler_t handler) {
+        TcpServerBuilder &handler(handler_t handler) {
             return *this;
         }
 
-        ServerBuilder &addr(std::string addr_str) {
+        TcpServerBuilder &addr(std::string addr_str) {
             m_addr_str = addr_str;
             return *this;
         }
 
-        ServerBuilder &port(uint16_t port) {
+        TcpServerBuilder &port(uint16_t port) {
             m_port = port;
             return *this;
         }
 
-        ServerBuilder &hander(handler_t handler) {
+        TcpServerBuilder &hander(handler_t handler) {
             m_handler = handler;
             return *this;
         }
 
-        Server build() {
-            auto server = Server(m_addr_str, m_port, m_handler);
+        TcpServer build() {
+            auto server = TcpServer(m_addr_str, m_port, m_handler);
             return server;
         }
     };
@@ -111,13 +111,13 @@ class Server {
         close(client_sock_fd);
     }
 
-    Server(std::string addr_str, uint16_t port, handler_t handler)
+    TcpServer(std::string addr_str, uint16_t port, handler_t handler)
         : m_addr_str(addr_str), m_port(port), m_handler(handler) {
     }
 
   public:
-    static ServerBuilder builder() {
-        return ServerBuilder();
+    static TcpServerBuilder builder() {
+        return TcpServerBuilder();
     }
 
     void listen() {
@@ -159,7 +159,7 @@ void protocol_handler(int fd) {
 }
 
 int main() {
-    Server::builder()
+    TcpServer::builder()
         .addr("0.0.0.0")
         .port(2020)
         .hander(protocol_handler)
