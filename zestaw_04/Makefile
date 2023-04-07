@@ -2,20 +2,20 @@ Q		:= @
 CC		:= g++
 LD		:= g++
 
-CCFLAGS		+= -Wall
-CCFLAGS		+= -O2
-CCFLAGS		+= -std=c++17
-CCFLAGS		+= -pedantic
+CXXFLAGS	+= -Wall
+CXXFLAGS	+= -O2
+CXXFLAGS	+= -std=c++17
+CXXFLAGS	+= -pedantic
 
-all: udp_server.x
+all: server.x
 
-%.x: %.o
+server.x: main.o TcpServer.o
 	@printf "  LD\t$^\n"
 	$(Q)$(LD) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
-%.o: %.cpp
+%.o: %.cpp %.hpp
 	@printf "  CC\t$<\n"
-	$(Q)$(CC) $(CCFLAGS) -c $< -o $@ 
+	$(Q)$(CC) $(CXXFLAGS) -c $< -o $@ 
 
 clean:
 	@printf "  CLEAN\n"
