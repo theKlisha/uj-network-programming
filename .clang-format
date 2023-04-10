@@ -1,3 +1,5 @@
-AllowShortFunctionsOnASingleLine: false
 AlignAfterOpenBracket: BlockIndent
+AllowShortFunctionsOnASingleLine: false
+ColumnLimit: 0
 IndentWidth: 4
+NamespaceIndentation: All

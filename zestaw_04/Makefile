@@ -9,7 +9,7 @@ CXXFLAGS	+= -pedantic
 
 all: server.x
 
-server.x: main.o TcpServer.o
+server.x: main.o protocol.o net.o
 	@printf "  LD\t$^\n"
 	$(Q)$(LD) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
