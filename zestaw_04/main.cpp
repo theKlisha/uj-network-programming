@@ -12,17 +12,16 @@ class Handler : public net::Handler {
         auto lexer = protocol::Lexer(context.stream_reader());
 
         while (true) {
-            try {
-                auto line = protocol::parse_line(lexer);
-                if (std::holds_alternative<protocol::ParsedLineValue>(line)) {
-                    auto value = std::get<protocol::ParsedLineValue>(line).value;
-                    context.write_string(std::to_string(value) + "\r\n");
-                } else if (std::holds_alternative<protocol::ParsedLineEmpty>(line)) {
-                    context.write_string("\r\n");
-                    return;
-                }
-            } catch (std::runtime_error &e) {
+            auto line = protocol::parse_line(lexer);
+            if (std::holds_alternative<protocol::ParsedLineValue>(line)) {
+                auto value = std::get<protocol::ParsedLineValue>(line).value;
+                context.write_string(std::to_string(value) + "\r\n");
+            } else if (std::holds_alternative<protocol::ParsedLineError>(line)) {
+                auto e = std::get<protocol::ParsedLineError>(line).error;
+                std::cout << e.what() << std::endl;
                 context.write_string("ERROR\r\n");
+            } else if (std::holds_alternative<protocol::ParsedLineEmpty>(line)) {
+                context.write_string("\r\n");
                 return;
             }
         }

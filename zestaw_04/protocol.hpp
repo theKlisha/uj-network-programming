@@ -51,9 +51,13 @@ namespace protocol {
         int32_t value;
     };
 
+    struct ParsedLineError {
+        std::runtime_error error;
+    };
+
     struct ParsedLineEmpty {};
 
-    using ParsedLine = std::variant<ParsedLineValue, ParsedLineEmpty>;
+    using ParsedLine = std::variant<ParsedLineValue, ParsedLineEmpty, ParsedLineError>;
 
     ParsedLine parse_line(Lexer lexer);
 
