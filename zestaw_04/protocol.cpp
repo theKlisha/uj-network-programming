@@ -37,8 +37,7 @@ namespace protocol {
             }
             return TokenNumber{value};
         } else {
-            std::cout << "throwing lexer_error" << std::endl;
-            throw lexer_error(*this);
+            throw lexer_error(*this, "unexpected character");
         }
     }
 
@@ -81,7 +80,7 @@ namespace protocol {
     std::runtime_error lexer_error(const Lexer &lexer, std::string message) {
         return std::runtime_error(
             "lexer error: unexpected character at " + std::to_string(lexer.line()) + ":" +
-            std::to_string(lexer.column()) + " -" + message
+            std::to_string(lexer.column()) + " - " + message
         );
     }
 
@@ -92,9 +91,8 @@ namespace protocol {
         );
     }
 
-    ParsedLine parse_line(Lexer lexer) {
+    ParsedLine parse_line(Lexer &lexer) {
         try {
-
             auto token = lexer.next();
             int32_t sum = 0;
 
@@ -138,5 +136,5 @@ namespace protocol {
             lexer.next_line();
             return ParsedLineError{e};
         }
-    };
-}; // namespace protocol
+    }
+} // namespace protocol

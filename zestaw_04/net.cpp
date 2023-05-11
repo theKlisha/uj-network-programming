@@ -10,7 +10,7 @@ namespace net {
     void TcpServer::m_assert_ok(bool condition, std::string message) {
         if (!condition) {
             throw std::runtime_error(
-                message + ": " + std::string(strerror(errno))
+                message + ": " + std::string(std::strerror(errno))
             );
         }
     }
@@ -25,12 +25,10 @@ namespace net {
         m_sock_fd = socket(AF_INET, SOCK_STREAM, 0);
         m_assert_ok(m_sock_fd != -1, "failed to create socket");
 
-        sockaddr_in sock_addr = {
-            .sin_len = 0,
-            .sin_family = AF_INET,
-            .sin_port = htons(m_port),
-            .sin_addr = {.s_addr = addr_raw},
-        };
+        sockaddr_in sock_addr;
+        sock_addr.sin_family = AF_INET;
+        sock_addr.sin_port = htons(m_port);
+        sock_addr.sin_addr.s_addr = addr_raw;
 
         sockaddr *sock_addr_ptr = (sockaddr *)&sock_addr;
         result = bind(m_sock_fd, sock_addr_ptr, sizeof(sock_addr));
@@ -46,10 +44,12 @@ namespace net {
         }
     }
 
-    Context::Context(int sock_fd) : sock_fd(sock_fd) {
+    Context::Context(int sock_fd)
+        : sock_fd(sock_fd) {
     }
 
-    Context::Context(const Context &&other) : sock_fd(other.sock_fd) {
+    Context::Context(const Context &&other)
+        : sock_fd(other.sock_fd) {
         this->sock_fd = -1;
     }
 

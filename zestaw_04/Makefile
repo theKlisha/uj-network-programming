@@ -6,6 +6,7 @@ CXXFLAGS	+= -Wall
 CXXFLAGS	+= -O2
 CXXFLAGS	+= -std=c++17
 CXXFLAGS	+= -pedantic
+CXXFLAGS	+= -g
 
 all: server.x
 

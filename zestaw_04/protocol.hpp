@@ -59,6 +59,6 @@ namespace protocol {
 
     using ParsedLine = std::variant<ParsedLineValue, ParsedLineEmpty, ParsedLineError>;
 
-    ParsedLine parse_line(Lexer lexer);
+    ParsedLine parse_line(Lexer &lexer);
 
 } // namespace protocol

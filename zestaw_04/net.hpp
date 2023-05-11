@@ -13,6 +13,7 @@
 #include <thread>
 #include <unistd.h>
 #include <vector>
+#include <cstring>
 
 namespace net {
     class TcpServer;
@@ -67,16 +68,26 @@ namespace net {
         std::array<uint8_t, 1024> m_buffer = std::array<uint8_t, 1024>();
 
         void m_read_next_chunk() {
-            m_size = ::read(m_fd, m_buffer.data(), m_buffer.size());
+            int bytes_red = ::read(m_fd, m_buffer.data(), m_buffer.size());
+
+            if (bytes_red == -1) {
+                throw std::runtime_error("failed to read");
+            } else if (bytes_red == 0) {
+                throw std::runtime_error("connection closed");
+            } else {
+                m_size = bytes_red;
+            }
+
             m_index = 0;
         }
 
       public:
-        StremReader(int fd) : m_fd(fd) {
+        StremReader(int fd)
+            : m_fd(fd) {
         }
 
         uint8_t read() {
-            if (m_index == m_size) {
+            if (m_index >= m_size) {
                 m_read_next_chunk();
             }
 
@@ -84,7 +95,7 @@ namespace net {
         }
 
         uint8_t peek() {
-            if (m_index == m_size) {
+            if (m_index >= m_size) {
                 m_read_next_chunk();
             }
 
